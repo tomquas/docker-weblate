@@ -16,6 +16,5 @@ wsgiref==0.1.2
 pyLibravatar==1.7
 pydns==2.3.6
 Babel==2.0
-lxml==3.4.4
 Weblate==2.4
 pyuca==1.1
