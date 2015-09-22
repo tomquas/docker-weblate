@@ -23,18 +23,22 @@
 #
 
 import django
-if django.VERSION < (1, 4, 0):
+import os
+from logging.handlers import SysLogHandler
+
+#
+# Safety check for running with too old Django version
+#
+
+if django.VERSION < (1, 7, 0):
     raise Exception(
-        'Weblate needs Django 1.4 or newer, you are using %s!' %
+        'Weblate needs Django 1.7 or newer, you are using %s!' %
         django.get_version()
     )
 
 #
 # Django settings for Weblate project.
 #
-
-import os
-from logging.handlers import SysLogHandler
 
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
@@ -75,7 +79,7 @@ DATABASES = {
 # timezone as the operating system.
 # If running in a Windows environment this must be set to the same as your
 # system time zone.
-TIME_ZONE = 'Europe/Prague'
+TIME_ZONE = 'UTC'
 
 # Language code for this installation. All choices can be found here:
 # http://www.i18nguy.com/unicode/language-identifiers.html
@@ -104,7 +108,7 @@ LANGUAGES = (
     ('nl', u'Nederlands'),
     ('pl', u'Polski'),
     ('pt', u'Português'),
-    ('pt_BR', u'Português brasileiro'),
+    ('pt-BR', u'Português brasileiro'),
     ('ru', u'Русский'),
     ('sk', u'Slovenčina'),
     ('sl', u'Slovenščina'),
@@ -144,7 +148,7 @@ MEDIA_URL = '%s/media/' % URL_PREFIX
 # Don't put anything in this directory yourself; store your static files
 # in apps' "static/" subdirectories and in STATICFILES_DIRS.
 # Example: "/home/media/media.lawrence.com/static/"
-STATIC_ROOT = ''
+STATIC_ROOT = os.path.join(DATA_DIR, 'static')
 
 # URL prefix for static files.
 # Example: "http://media.lawrence.com/static/"
@@ -162,6 +166,7 @@ STATICFILES_DIRS = (
 STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    'compressor.finders.CompressorFinder',
 )
 
 # Make this unique, and don't share it with anybody.
@@ -176,10 +181,14 @@ TEMPLATE_LOADERS = (
     )),
 )
 
+# GitHub username for sending pull requests.
+# Please see the documentation for more details.
+GITHUB_USERNAME = None
+
 # Authentication configuration
 AUTHENTICATION_BACKENDS = (
-    'social.backends.google.GoogleOpenId',
-    'social.backends.email.EmailAuth',
+    'weblate.accounts.auth.EmailAuth',
+    # 'social.backends.google.GoogleOAuth2',
     # 'social.backends.github.GithubOAuth2',
     # 'social.backends.bitbucket.BitbucketOAuth',
     # 'social.backends.suse.OpenSUSEOpenId',
@@ -202,6 +211,9 @@ SOCIAL_AUTH_FACEBOOK_KEY = ''
 SOCIAL_AUTH_FACEBOOK_SECRET = ''
 SOCIAL_AUTH_FACEBOOK_SCOPE = ['email', 'public_profile']
 
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = ''
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = ''
+
 # Social auth settings
 SOCIAL_AUTH_PIPELINE = (
     'social.pipeline.social_auth.social_details',
@@ -214,6 +226,7 @@ SOCIAL_AUTH_PIPELINE = (
     'social.pipeline.mail.mail_validation',
     'social.pipeline.social_auth.associate_by_email',
     'weblate.accounts.pipeline.verify_open',
+    'weblate.accounts.pipeline.verify_username',
     'social.pipeline.user.create_user',
     'social.pipeline.social_auth.associate_user',
     'social.pipeline.social_auth.load_extra_data',
@@ -229,7 +242,10 @@ SOCIAL_AUTH_EMAIL_VALIDATION_FUNCTION = \
 SOCIAL_AUTH_EMAIL_VALIDATION_URL = '%s/accounts/email-sent/' % URL_PREFIX
 SOCIAL_AUTH_LOGIN_ERROR_URL = '%s/accounts/login/' % URL_PREFIX
 SOCIAL_AUTH_EMAIL_FORM_URL = '%s/accounts/email/' % URL_PREFIX
+SOCIAL_AUTH_NEW_ASSOCIATION_REDIRECT_URL = \
+    '%s/accounts/profile/#auth' % URL_PREFIX
 SOCIAL_AUTH_PROTECTED_USER_FIELDS = ('email',)
+SOCIAL_AUTH_SLUGIFY_USERNAMES = True
 
 # Middleware
 MIDDLEWARE_CLASSES = (
@@ -266,6 +282,7 @@ INSTALLED_APPS = (
     'django.contrib.sitemaps',
     'social.apps.django_app.default',
     'crispy_forms',
+    'compressor',
     'weblate.trans',
     'weblate.lang',
     'weblate.accounts',
@@ -286,7 +303,6 @@ TEMPLATE_CONTEXT_PROCESSORS = (
     'django.contrib.auth.context_processors.auth',
     'django.core.context_processors.debug',
     'django.core.context_processors.i18n',
-    'django.core.context_processors.media',
     'django.core.context_processors.request',
     'django.core.context_processors.csrf',
     'django.contrib.messages.context_processors.messages',
@@ -410,7 +426,7 @@ MT_GOOGLE_KEY = None
 MT_TMSERVER = None
 
 # Title of site to use
-SITE_TITLE = 'Weblate'
+SITE_TITLE = u'Weblate'
 
 # Whether to offer hosting
 OFFER_HOSTING = False
@@ -431,7 +447,7 @@ ANONYMOUS_USER_NAME = 'anonymous'
 EMAIL_SEND_HTML = False
 
 # Subject of emails includes site title
-EMAIL_SUBJECT_PREFIX = '[%s] ' % SITE_TITLE
+EMAIL_SUBJECT_PREFIX = u'[%s] ' % SITE_TITLE
 
 # Enable remote hooks
 ENABLE_HOOKS = True
@@ -472,6 +488,7 @@ CRISPY_TEMPLATE_PACK = 'bootstrap3'
 #     'weblate.trans.checks.format.PythonBraceFormatCheck',
 #     'weblate.trans.checks.format.PHPFormatCheck',
 #     'weblate.trans.checks.format.CFormatCheck',
+#     'weblate.trans.checks.format.JavascriptFormatCheck',
 #     'weblate.trans.checks.consistency.PluralsCheck',
 #     'weblate.trans.checks.consistency.ConsistencyCheck',
 #     'weblate.trans.checks.chars.NewlineCountingCheck',
@@ -491,6 +508,8 @@ CRISPY_TEMPLATE_PACK = 'bootstrap3'
 # )
 
 # List of scripts to use in custom processing
+# POST_UPDATE_SCRIPTS = (
+# )
 # PRE_COMMIT_SCRIPTS = (
 # )
 
@@ -502,7 +521,6 @@ CRISPY_TEMPLATE_PACK = 'bootstrap3'
 #     'weblate.trans.machine.google.GoogleWebTranslation',
 #     'weblate.trans.machine.microsoft.MicrosoftTranslation',
 #     'weblate.trans.machine.mymemory.MyMemoryTranslation',
-#     'weblate.trans.machine.opentran.OpenTranTranslation',
 #     'weblate.trans.machine.tmserver.AmagamaTranslation',
 #     'weblate.trans.machine.tmserver.TMServerTranslation',
 #     'weblate.trans.machine.weblatetm.WeblateSimilarTranslation',
@@ -543,7 +561,7 @@ ALLOWED_HOSTS = []
 # In such case you will want to include some of the exceptions
 # LOGIN_REQUIRED_URLS_EXCEPTIONS = (
 #    r'/accounts/(.*)$', # Required for login
-#    r'/media/(.*)$',    # Required for development mode
+#    r'/static/(.*)$',    # Required for development mode
 #    r'/widgets/(.*)$',  # Allowing public access to widgets
 #    r'/data/(.*)$',     # Allowing public access to data exports
 #    r'/hooks/(.*)$',    # Allowing public access to notification hooks
