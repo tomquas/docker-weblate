@@ -1,5 +1,6 @@
-FROM ubuntu:14.10
-MAINTAINER Wichert Akkerman <wichert@wiggy.net>
+FROM ubuntu:15.04
+MAINTAINER tom quas <tom@patugo.com>
+# original author: Wichert Akkerman <wichert@wiggy.net>
 
 # Add user early to get a consistent userid
 RUN useradd --shell /bin/sh --user-group weblate
@@ -14,7 +15,6 @@ RUN bin/pip install -r /tmp/requirements.txt
 RUN rm /tmp/requirements.txt
 
 WORKDIR /tmp
-
 RUN install -d -o weblate -g weblate -m 755 /app/data
 RUN install -d -o root -g root -m 755 /app/etc
 RUN cp /app/lib/python2.7/site-packages/weblate/settings_example.py /app/etc/settings.py
